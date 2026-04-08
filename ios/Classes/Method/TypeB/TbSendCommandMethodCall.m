@@ -52,8 +52,9 @@ static NSString * METHOD_NAME = @"typeB-sendCommand";
                 }
                 
                 bool success = false;
-                
-                success = [printer sendCommand:command] == 1;
+
+                // Match method signature from official SDK.
+                success = [printer sendcommand:command] == 1;
                 
                 if (!success) {
                     dispatch_sync(dispatch_get_main_queue(), ^{
