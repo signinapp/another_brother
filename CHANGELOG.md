@@ -149,3 +149,10 @@
 
 ## 2.2.4
 - Adds 16KB support for Android. Special thanks to swapnilparmar-git for the change.
+
+## 2.2.4-fork.1
+- Now reads Brother SDKs from private submodule (keeps proprietary binaries out of public repos).
+- Bump Brother Android SDK to v4.13 (fixes missing 16KB support for X86_64 architecture).
+- Bump iOS SDK to v4.13 (for parity).
+- Remove redundant legacy iOS SDK (`BRLMPrinterKitW`) from the plugin.
+- [BREAKING] Minimum iOS version bumped from 9.0 to 13.0.

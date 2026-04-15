@@ -1,0 +1,3 @@
+[submodule "brother_sdks"]
+	path = brother_sdks
+	url = git@github.com:signinapp/brother_sdks.git

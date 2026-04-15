@@ -62,7 +62,8 @@ static NSString * METHOD_NAME = @"typeB-sendCommandBin";
                 
                 //NSString* command = [NSString stringWithUTF8String:[commandBytes bytes]];
 
-                success = [printer sendCommand:command] == 1;
+                // Match method signature from official SDK.
+                success = [printer sendcommand:command] == 1;
                 
                 if (!success) {
                     dispatch_sync(dispatch_get_main_queue(), ^{

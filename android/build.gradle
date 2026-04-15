@@ -19,10 +19,8 @@ rootProject.allprojects {
     repositories {
         google()
         mavenCentral()
-        //jcenter()
-        maven {
-            //url "https://rouninlabs.jfrog.io/artifactory/rounin-libs-external/"
-            url "https://artifacts.rouninlabs.com/rounin-libs-external/"
+        flatDir {
+            dirs project(':another_brother').file('../brother_sdks/android')
         }
     }
 }
@@ -55,9 +53,15 @@ android {
     }
 }
 
+// Fetch submodule during configuration (git submodules not fetched by default).
+exec {
+    workingDir projectDir.parentFile // repo root where .gitmodules lives.
+    commandLine 'git', 'submodule', '--quiet', 'update', '--init', '--recursive'
+}
+
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
-    implementation 'com.brother.sdk:printer:4.6.1@aar'
-    implementation 'com.brother.typeb:print:1.0.0'
+    implementation(name: 'BrotherPrintLibrary', ext: 'aar') // Type A.
+    implementation(name: 'brothersdk', ext: 'jar') // Type B (legacy).
 }
