@@ -156,3 +156,10 @@
 - Bump iOS SDK to v4.13 (for parity).
 - Remove redundant legacy iOS SDK (`BRLMPrinterKitW`) from the plugin.
 - [BREAKING] Minimum iOS version bumped from 9.0 to 13.0.
+
+## 2.2.4-fork.2
+- Android: `getPrinterStatus`, `printImage`, `getNetPrinters` and `getBluetoothPrinters` no longer
+  crash the host app when the Brother SDK throws. Their work runs in an unhandled `GlobalScope`
+  coroutine, so any throw reached Android's default uncaught-exception handler and killed the
+  process; they now catch it, log it, and reply with `ERROR_SYSTEM_ERROR` (or an empty printer list)
+  so the Dart caller sees a normal result.

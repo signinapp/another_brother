@@ -25,48 +25,65 @@ class GetNetPrintersMethodCall(val flutterAssets: FlutterPlugin.FlutterAssets, v
 
         GlobalScope.launch(Dispatchers.IO) {
 
-            val dartPrintInfo: HashMap<String, Any> = call.argument<HashMap<String, Any>>("printInfo")!!
-            val printerId: String = call.argument<String>("printerId")!!
-            val models:List<String> = call.argument<List<String>>("models")!!
+            // Throwable rather than Exception: this coroutine has no exception handler, so
+            // anything escaping it kills the process instead of reaching Dart.
+            val dartPrinters: List<Map<String, Any>> = try {
+                val dartPrintInfo: HashMap<String, Any> = call.argument<HashMap<String, Any>>("printInfo")!!
+                val printerId: String = call.argument<String>("printerId")!!
+                val models:List<String> = call.argument<List<String>>("models")!!
 
-            // Decoded Printer Info
-            val printInfo = printerInfofromMap(context = context, flutterAssets = flutterAssets, map = dartPrintInfo)
+                // Decoded Printer Info
+                val printInfo = printerInfofromMap(context = context, flutterAssets = flutterAssets, map = dartPrintInfo)
 
-            // A print request is considered one-time if there was no printer tracked with this ID.
-            // this will open a new connection and close it when done.
-            // If it is not one-time it means someone must have already opened a connection using
-            // the startCommunication() API. When endCommunication() is called that printer will be removed.
-            // Create Printer
-            val trackedPrinter = BrotherManager.getPrinter(printerId = printerId)
-            val isOneTime:Boolean = trackedPrinter == null;
-            val printer = trackedPrinter?: Printer()
+                // A print request is considered one-time if there was no printer tracked with this ID.
+                // this will open a new connection and close it when done.
+                // If it is not one-time it means someone must have already opened a connection using
+                // the startCommunication() API. When endCommunication() is called that printer will be removed.
+                // Create Printer
+                val trackedPrinter = BrotherManager.getPrinter(printerId = printerId)
+                val isOneTime:Boolean = trackedPrinter == null;
+                val printer = trackedPrinter?: Printer()
 
-            // Prepare local connection.
-            val error = setupConnectionManagers(context = context, printer = printer, printInfo = printInfo)
-            if (error != PrinterInfo.ErrorCode.ERROR_NONE) {
-                // There was an error notify
-                withContext(Dispatchers.Main) {
-                    result.success(arrayListOf<Map<String, Any>>())
+                // Prepare local connection.
+                val error = setupConnectionManagers(context = context, printer = printer, printInfo = printInfo)
+                if (error != PrinterInfo.ErrorCode.ERROR_NONE) {
+                    // There was an error notify
+                    arrayListOf<Map<String, Any>>()
+                } else {
+
+                    // Set Printer Info
+                    printer.printerInfo = printInfo
+
+                    val netPrinters = printer.getNetPrinters(models.toTypedArray());
+
+                    Log.e(TAG, "Printers: $netPrinters")
+                    // Encode Printers
+                    val encodedPrinters:List<Map<String, Any>> = netPrinters.map {
+                        Log.e(TAG, "Printer Name: ${it.modelName}" )
+                        it.toMap() }
+                    Log.e(TAG, " Out Printers: $encodedPrinters")
+                    encodedPrinters
                 }
-                return@launch
+            }
+            catch (t: Throwable) {
+                Log.e("another-brother", "getNetPrinters error: ", t);
+                arrayListOf<Map<String, Any>>()
             }
 
-            // Set Printer Info
-            printer.printerInfo = printInfo
-
-            val netPrinters = printer.getNetPrinters(models.toTypedArray());
-
-            Log.e(TAG, "Printers: $netPrinters")
-            // Encode Printers
-            val dartPrinters:List<Map<String, Any>> = netPrinters.map {
-                Log.e(TAG, "Printer Name: ${it.modelName}" )
-                it.toMap() }
-            Log.e(TAG, " Out Printers: $dartPrinters")
-
             withContext(Dispatchers.Main) {
-               // Set result Printer status.
-               result.success(dartPrinters)
-           }
+                try {
+                    // Set result Printer status.
+                    result.success(dartPrinters)
+                } catch (t: Throwable) {
+                    Log.e("another-brother", "getNetPrinters reply error: ", t);
+                    // Swallowing this would leave the Dart future hanging forever, so fail it.
+                    try {
+                        result.error(METHOD_NAME, t.message, null)
+                    } catch (e: Throwable) {
+                        Log.e("another-brother", "getNetPrinters error reply failed: ", e);
+                    }
+                }
+            }
         }
 
     }

@@ -29,73 +29,93 @@ class GetBluetoothPrintersMethodCall(
 
         GlobalScope.launch(Dispatchers.IO) {
 
-            val dartPrintInfo: HashMap<String, Any> =
-                call.argument<HashMap<String, Any>>("printInfo")!!
-            val printerId: String = call.argument<String>("printerId")!!
-            val models: List<String> = call.argument<List<String>>("models")!!
+            // Throwable rather than Exception: this coroutine has no exception handler, so
+            // anything escaping it kills the process instead of reaching Dart.
+            val dartPrinters: List<Map<String, Any>> = try {
+                val dartPrintInfo: HashMap<String, Any> =
+                    call.argument<HashMap<String, Any>>("printInfo")!!
+                val printerId: String = call.argument<String>("printerId")!!
+                val models: List<String> = call.argument<List<String>>("models")!!
 
-            // Decoded Printer Info
-            val printInfo = printerInfofromMap(
-                context = context,
-                flutterAssets = flutterAssets,
-                map = dartPrintInfo
-            )
+                // Decoded Printer Info
+                val printInfo = printerInfofromMap(
+                    context = context,
+                    flutterAssets = flutterAssets,
+                    map = dartPrintInfo
+                )
 
-            /*
-            // A print request is considered one-time if there was no printer tracked with this ID.
-            // this will open a new connection and close it when done.
-            // If it is not one-time it means someone must have already opened a connection using
-            // the startCommunication() API. When endCommunication() is called that printer will be removed.
-            // Create Printer
-            val trackedPrinter = BrotherManager.getPrinter(printerId = printerId)
-            val isOneTime:Boolean = trackedPrinter == null;
-            val printer = trackedPrinter?: Printer()
+                /*
+                // A print request is considered one-time if there was no printer tracked with this ID.
+                // this will open a new connection and close it when done.
+                // If it is not one-time it means someone must have already opened a connection using
+                // the startCommunication() API. When endCommunication() is called that printer will be removed.
+                // Create Printer
+                val trackedPrinter = BrotherManager.getPrinter(printerId = printerId)
+                val isOneTime:Boolean = trackedPrinter == null;
+                val printer = trackedPrinter?: Printer()
 
-            // Prepare local connection.
-            val error = setupConnectionManagers(context = context, printer = printer, printInfo = printInfo)
-            if (error != PrinterInfo.ErrorCode.ERROR_NONE) {
-                // There was an error notify
-                withContext(Dispatchers.Main) {
-                    result.success(arrayListOf<Map<String, Any>>())
+                // Prepare local connection.
+                val error = setupConnectionManagers(context = context, printer = printer, printInfo = printInfo)
+                if (error != PrinterInfo.ErrorCode.ERROR_NONE) {
+                    // There was an error notify
+                    withContext(Dispatchers.Main) {
+                        result.success(arrayListOf<Map<String, Any>>())
+                    }
+                    return@launch
                 }
-                return@launch
+
+                // Set Printer Info
+                printer.printerInfo = printInfo
+
+                val netPrinters = printer.getNetPrinters(models.toTypedArray());
+
+                Log.e(TAG, "Printers: $netPrinters")
+                // Encode Printers
+                val dartPrinters:List<Map<String, Any>> = netPrinters.map {
+                    Log.e(TAG, "Printer Name: ${it.modelName}" )
+                    it.toMap() }
+                Log.e(TAG, " Out Printers: $dartPrinters")
+                */
+
+                // TODO Only select the devices containing the model in them.
+                // Brother names their printers with the model followed by what seems to be 4 digits.
+                // getDefaultAdapter() is null when the device has no Bluetooth hardware.
+                val matchingPrinters =
+                    BluetoothAdapter.getDefaultAdapter()?.bondedDevices?.filter { bluetoothDevice ->
+                        models.filter { modelName ->
+                            val btName: String? = bluetoothDevice.name
+
+                            btName != null && (btName.contains(modelName) || btName.replace(
+                                "-",
+                                "_"
+                            ).contains(modelName))
+
+                        }.isNotEmpty()
+                    } ?: emptyList()
+
+                //Log.e("Frank", "Found Printers ${BluetoothAdapter.getDefaultAdapter().bondedDevices}")
+                //Log.e("Frank" , "Filtered Printers $matchingPrinters")
+
+                matchingPrinters.map { it.toBluetoothPrinter() }
+            }
+            catch (t: Throwable) {
+                Log.e("another-brother", "getBluetoothPrinters error: ", t);
+                arrayListOf<Map<String, Any>>()
             }
 
-            // Set Printer Info
-            printer.printerInfo = printInfo
-
-            val netPrinters = printer.getNetPrinters(models.toTypedArray());
-
-            Log.e(TAG, "Printers: $netPrinters")
-            // Encode Printers
-            val dartPrinters:List<Map<String, Any>> = netPrinters.map {
-                Log.e(TAG, "Printer Name: ${it.modelName}" )
-                it.toMap() }
-            Log.e(TAG, " Out Printers: $dartPrinters")
-            */
-
-            // TODO Only select the devices containing the model in them.
-            // Brother names their printers with the model followed by what seems to be 4 digits.
-            val matchingPrinters =
-                BluetoothAdapter.getDefaultAdapter().bondedDevices.filter { bluetoothDevice ->
-                    models.filter { modelName ->
-                        val btName: String? = bluetoothDevice.name
-                        
-                        btName != null && (btName.contains(modelName) || btName.replace(
-                            "-",
-                            "_"
-                        ).contains(modelName))
-
-                    }.isNotEmpty()
-                }
-
-            //Log.e("Frank", "Found Printers ${BluetoothAdapter.getDefaultAdapter().bondedDevices}")
-            //Log.e("Frank" , "Filtered Printers $matchingPrinters")
-
-            val dartPrinters = matchingPrinters.map { it.toBluetoothPrinter() }
             withContext(Dispatchers.Main) {
-                // Set result Printer status.
-                result.success(dartPrinters)
+                try {
+                    // Set result Printer status.
+                    result.success(dartPrinters)
+                } catch (t: Throwable) {
+                    Log.e("another-brother", "getBluetoothPrinters reply error: ", t);
+                    // Swallowing this would leave the Dart future hanging forever, so fail it.
+                    try {
+                        result.error(METHOD_NAME, t.message, null)
+                    } catch (e: Throwable) {
+                        Log.e("another-brother", "getBluetoothPrinters error reply failed: ", e);
+                    }
+                }
             }
         }
 
