@@ -84,8 +84,10 @@ class GetPrinterStatusMethodCall(val flutterAssets: FlutterPlugin.FlutterAssets,
             }
             catch (t: Throwable) {
                 Log.e("another-brother", "getPrinterStatus error: ", t);
+                // The SDK only throws out of a status query when the connection is gone, so report
+                // it as a communication error rather than a generic one.
                 PrinterStatus().apply {
-                    errorCode = PrinterInfo.ErrorCode.ERROR_SYSTEM_ERROR
+                    errorCode = PrinterInfo.ErrorCode.ERROR_COMMUNICATION_ERROR
                 }.toMap()
             }
 
