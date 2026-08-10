@@ -1,6 +1,7 @@
 package com.rouninlabs.another_brother.method.typeb
 
 import android.content.Context
+import android.util.Log
 import com.brother.ptouch.sdk.Printer
 import com.brother.ptouch.sdk.PrinterInfo
 import com.brother.ptouch.sdk.PrinterStatus
@@ -21,36 +22,43 @@ class TbSendCommandMethodCall(val flutterAssets: FlutterPlugin.FlutterAssets, va
     fun execute() {
 
         GlobalScope.launch(Dispatchers.IO) {
+            try {
 
-            val dartPrintInfo: HashMap<String, Any> = call.argument<HashMap<String, Any>>("printInfo")!!
-            val printerId: String = call.argument<String>("printerId")!!
-            val command: String = call.argument<String>("command")!!
+                val dartPrintInfo: HashMap<String, Any> = call.argument<HashMap<String, Any>>("printInfo")!!
+                val printerId: String = call.argument<String>("printerId")!!
+                val command: String = call.argument<String>("command")!!
 
-            val tbPrinter:ITbPrinterAdapter? = BrotherManager.getTypeBPrinter(printerId = printerId)
+                val tbPrinter:ITbPrinterAdapter? = BrotherManager.getTypeBPrinter(printerId = printerId)
 
-            if (tbPrinter == null) {
-                withContext(Dispatchers.Main) {
-                    // Set result Printer status.
-                    result.success(false)
+                if (tbPrinter == null) {
+                    withContext(Dispatchers.Main) {
+                        // Set result Printer status.
+                        result.success(false)
+                    }
+                    return@launch
                 }
-                return@launch
-            }
 
-            val success = tbPrinter.sendCommand(message = command)
+                val success = tbPrinter.sendCommand(message = command)
             
-            if (!success) {
+                if (!success) {
+                    withContext(Dispatchers.Main) {
+                        // Set result Printer status.
+                        result.success(false)
+                    }
+                    return@launch
+                }
+
+                // On Success track printer
                 withContext(Dispatchers.Main) {
-                    // Set result Printer status.
+                   // Set result Printer status.
+                   result.success(true)
+               }
+            } catch (t: Throwable) {
+                Log.e("another-brother", "typeB-sendCommand error: ", t);
+                withContext(Dispatchers.Main) {
                     result.success(false)
                 }
-                return@launch
             }
-
-            // On Success track printer
-            withContext(Dispatchers.Main) {
-               // Set result Printer status.
-               result.success(true)
-           }
         }
 
     }

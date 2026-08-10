@@ -158,8 +158,20 @@
 - [BREAKING] Minimum iOS version bumped from 9.0 to 13.0.
 
 ## 2.2.4-fork.2
-- Android: `getPrinterStatus`, `printImage`, `getNetPrinters` and `getBluetoothPrinters` no longer
-  crash the host app when the Brother SDK throws. Their work runs in an unhandled `GlobalScope`
-  coroutine, so any throw reached Android's default uncaught-exception handler and killed the
-  process; they now catch it, log it, and reply with `ERROR_SYSTEM_ERROR` (or an empty printer list)
-  so the Dart caller sees a normal result.
+- Android: no method call can crash the host app any more. Every handler ran its work inside an
+  unhandled `GlobalScope` coroutine, so anything the Brother SDK threw reached Android's default
+  uncaught-exception handler and killed the process without ever crossing the platform channel —
+  leaving the Dart caller no way to catch it or degrade. All 58 handlers now catch, log, and reply
+  with a normal result, so callers can react through the existing API.
+- Reported in the field as a fatal `NullPointerException` from `Printer.getPrinterStatus()` on a
+  printer that was connected and then powered off.
+- Each handler replies with its own established failure value — `getPrinterStatus` reports
+  `ERROR_COMMUNICATION_ERROR` (the SDK only throws there when the link is gone), the print handlers
+  report `ERROR_SYSTEM_ERROR`, the discovery methods return an empty list, and the rest reuse
+  whatever value they already returned when the connection could not be set up.
+- Android: `getPrinterStatus` and `printImage` now close the connection via `finally`, so a throw no
+  longer leaks it, and `printImage` always recycles its bitmap.
+- Android: `getBluetoothPrinters` handles a null `BluetoothAdapter.getDefaultAdapter()`, which is
+  what devices without Bluetooth hardware return.
+- Android: `getLabelInfo` no longer replies with a raw `LabelInfo` on its connection-error path. The
+  platform codec cannot encode it, so that path crashed the host app instead of reporting an error.

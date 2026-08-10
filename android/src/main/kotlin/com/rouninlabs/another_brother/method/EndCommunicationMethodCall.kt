@@ -1,6 +1,7 @@
 package com.rouninlabs.another_brother.method
 
 import android.content.Context
+import android.util.Log
 import com.brother.ptouch.sdk.Printer
 import com.rouninlabs.another_brother.BrotherManager
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -20,35 +21,42 @@ class EndCommunicationMethodCall(val flutterAssets: FlutterPlugin.FlutterAssets,
     fun execute() {
 
         GlobalScope.launch(Dispatchers.IO) {
+            try {
 
-            //val dartPrintInfo: HashMap<String, Any> = call.argument<HashMap<String, Any>>("printInfo")!!
-            val printerId: String = call.argument<String>("printerId")!!
+                //val dartPrintInfo: HashMap<String, Any> = call.argument<HashMap<String, Any>>("printInfo")!!
+                val printerId: String = call.argument<String>("printerId")!!
 
-            // Decoded Printer Info
-            //val printInfo = printerInfofromMap(dartPrintInfo)
+                // Decoded Printer Info
+                //val printInfo = printerInfofromMap(dartPrintInfo)
 
-            // Check if the ID is already tracked, if so we return.
-            val trackedPrinter = BrotherManager.getPrinter(printerId = printerId)
-            if (trackedPrinter == null) {
-                withContext(Dispatchers.Main) {
-                    result.success(true)
+                // Check if the ID is already tracked, if so we return.
+                val trackedPrinter = BrotherManager.getPrinter(printerId = printerId)
+                if (trackedPrinter == null) {
+                    withContext(Dispatchers.Main) {
+                        result.success(true)
+                    }
+                    return@launch
                 }
-                return@launch
+
+                val printer:Printer = trackedPrinter
+
+                val success = printer.endCommunication()
+
+                if (success) {
+                    BrotherManager.untrackPrinter(printerId = printerId)
+                }
+
+               withContext(Dispatchers.Main) {
+                   // Set result Printer status.
+                   result.success(true)
+                   //result.error("Error", "Method not implemented", "")
+               }
+            } catch (t: Throwable) {
+                Log.e("another-brother", "endCommunication error: ", t);
+                withContext(Dispatchers.Main) {
+                    result.error(METHOD_NAME, t.message, null)
+                }
             }
-
-            val printer:Printer = trackedPrinter
-
-            val success = printer.endCommunication()
-
-            if (success) {
-                BrotherManager.untrackPrinter(printerId = printerId)
-            }
-
-           withContext(Dispatchers.Main) {
-               // Set result Printer status.
-               result.success(true)
-               //result.error("Error", "Method not implemented", "")
-           }
         }
 
     }

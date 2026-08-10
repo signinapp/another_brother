@@ -1,6 +1,7 @@
 package com.rouninlabs.another_brother.method
 
 import android.content.Context
+import android.util.Log
 import com.brother.ptouch.sdk.Printer
 import com.brother.ptouch.sdk.PrinterInfo
 import com.brother.ptouch.sdk.PrinterStatus
@@ -22,50 +23,57 @@ class StartCommunicationMethodCall(val flutterAssets: FlutterPlugin.FlutterAsset
     fun execute() {
 
         GlobalScope.launch(Dispatchers.IO) {
+            try {
 
-            val dartPrintInfo: HashMap<String, Any> = call.argument<HashMap<String, Any>>("printInfo")!!
-            val printerId: String = call.argument<String>("printerId")!!
+                val dartPrintInfo: HashMap<String, Any> = call.argument<HashMap<String, Any>>("printInfo")!!
+                val printerId: String = call.argument<String>("printerId")!!
 
-            // Decoded Printer Info
-            val printInfo = printerInfofromMap(context = context, flutterAssets = flutterAssets, map = dartPrintInfo)
+                // Decoded Printer Info
+                val printInfo = printerInfofromMap(context = context, flutterAssets = flutterAssets, map = dartPrintInfo)
 
-            // Check if the ID is already tracked, if so we return.
-            val trackedPrinter = BrotherManager.getPrinter(printerId = printerId)
-            if (trackedPrinter != null) {
-                withContext(Dispatchers.Main) {
-                    result.success(true)
+                // Check if the ID is already tracked, if so we return.
+                val trackedPrinter = BrotherManager.getPrinter(printerId = printerId)
+                if (trackedPrinter != null) {
+                    withContext(Dispatchers.Main) {
+                        result.success(true)
+                    }
+                    return@launch
                 }
-                return@launch
-            }
 
-            val printer = Printer()
+                val printer = Printer()
 
-            // Prepare local connection.
-            val error = setupConnectionManagers(context = context, printer = printer, printInfo = printInfo)
-            if (error != PrinterInfo.ErrorCode.ERROR_NONE) {
-                // There was an error notify
+                // Prepare local connection.
+                val error = setupConnectionManagers(context = context, printer = printer, printInfo = printInfo)
+                if (error != PrinterInfo.ErrorCode.ERROR_NONE) {
+                    // There was an error notify
+                    withContext(Dispatchers.Main) {
+                        // Set result Printer status.
+                        result.success(false)
+                    }
+                    return@launch
+                }
+
+                // Set Printer Info
+                printer.printerInfo = printInfo
+
+
+                val success = printer.startCommunication()
+
+                if (success) {
+                    BrotherManager.trackPrinter(printerId = printerId, printer = printer)
+                }
+
+               withContext(Dispatchers.Main) {
+                   // Set result Printer status.
+                   result.success(success)
+                   //result.error("Error", "Method not implemented", "")
+               }
+            } catch (t: Throwable) {
+                Log.e("another-brother", "startCommunication error: ", t);
                 withContext(Dispatchers.Main) {
-                    // Set result Printer status.
                     result.success(false)
                 }
-                return@launch
             }
-
-            // Set Printer Info
-            printer.printerInfo = printInfo
-
-
-            val success = printer.startCommunication()
-
-            if (success) {
-                BrotherManager.trackPrinter(printerId = printerId, printer = printer)
-            }
-
-           withContext(Dispatchers.Main) {
-               // Set result Printer status.
-               result.success(success)
-               //result.error("Error", "Method not implemented", "")
-           }
         }
 
     }

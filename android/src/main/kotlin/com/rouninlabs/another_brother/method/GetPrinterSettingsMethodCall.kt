@@ -25,69 +25,81 @@ class GetPrinterSettingsMethodCall(val flutterAssets: FlutterPlugin.FlutterAsset
     fun execute() {
 
         GlobalScope.launch(Dispatchers.IO) {
+            try {
 
-            val dartPrintInfo: HashMap<String, Any> = call.argument<HashMap<String, Any>>("printInfo")!!
-            val printerId: String = call.argument<String>("printerId")!!
-            val dartKeys:List<Map<String, Any>> = call.argument("keys")!!
+                val dartPrintInfo: HashMap<String, Any> = call.argument<HashMap<String, Any>>("printInfo")!!
+                val printerId: String = call.argument<String>("printerId")!!
+                val dartKeys:List<Map<String, Any>> = call.argument("keys")!!
 
-            // Decoded Printer Info
-            val printInfo = printerInfofromMap(context = context, flutterAssets = flutterAssets, map = dartPrintInfo)
+                // Decoded Printer Info
+                val printInfo = printerInfofromMap(context = context, flutterAssets = flutterAssets, map = dartPrintInfo)
 
-            // A print request is considered one-time if there was no printer tracked with this ID.
-            // this will open a new connection and close it when done.
-            // If it is not one-time it means someone must have already opened a connection using
-            // the startCommunication() API. When endCommunication() is called that printer will be removed.
-            // Create Printer
-            val trackedPrinter = BrotherManager.getPrinter(printerId = printerId)
-            val isOneTime:Boolean = trackedPrinter == null;
-            val printer = trackedPrinter?: Printer()
+                // A print request is considered one-time if there was no printer tracked with this ID.
+                // this will open a new connection and close it when done.
+                // If it is not one-time it means someone must have already opened a connection using
+                // the startCommunication() API. When endCommunication() is called that printer will be removed.
+                // Create Printer
+                val trackedPrinter = BrotherManager.getPrinter(printerId = printerId)
+                val isOneTime:Boolean = trackedPrinter == null;
+                val printer = trackedPrinter?: Printer()
 
-            // Prepare local connection.
-            val error = setupConnectionManagers(context = context, printer = printer, printInfo = printInfo)
-            if (error != PrinterInfo.ErrorCode.ERROR_NONE) {
-                // There was an error notify
+                // Prepare local connection.
+                val error = setupConnectionManagers(context = context, printer = printer, printInfo = printInfo)
+                if (error != PrinterInfo.ErrorCode.ERROR_NONE) {
+                    // There was an error notify
+                    withContext(Dispatchers.Main) {
+                        // Set result Printer status.
+                        result.success(hashMapOf(
+                                "printerStatus" to PrinterStatus().apply {
+                                    errorCode = error
+                                }.toMap(),
+                                "values" to hashMapOf<Map<String, Any>, Any>()
+                        ))
+                    }
+                    return@launch
+                }
+
+                // Set Printer Info
+                printer.printerInfo = printInfo
+
+                // Start communication
+                if (isOneTime) {
+                    // Note: Starting a communication does not seem to impact whether we can print or
+                    // not. Calling print without calling this seems to still print fine.
+                    val started: Boolean = printer.startCommunication()
+                }
+
+                val settingKeys = dartKeys.map { printerSettingItemFromMap(it) }
+                val outValues:MutableMap<PrinterInfo.PrinterSettingItem, String> = hashMapOf()
+            
+                // Get settings
+                val printResult = printer.getPrinterSettings(settingKeys, outValues);
+
+                // End Communication
+                if (isOneTime) {
+                    val connectionClosed: Boolean = printer.endCommunication()
+                }
+                // Encode PrinterStatus
+                val dartPrintStatus = printResult.toMap()
+                val dartOutValues:Map<Map<String, Any>, Any> = outValues.entries.associate { (key, value) -> key.toMap() to value }
+               withContext(Dispatchers.Main) {
+                   // Set result Printer status.
+                   result.success(hashMapOf(
+                       "printerStatus" to dartPrintStatus,
+                       "values" to dartOutValues
+                   ))
+               }
+            } catch (t: Throwable) {
+                Log.e("another-brother", "getPrinterSettings error: ", t);
                 withContext(Dispatchers.Main) {
-                    // Set result Printer status.
                     result.success(hashMapOf(
                             "printerStatus" to PrinterStatus().apply {
-                                errorCode = error
+                                errorCode = PrinterInfo.ErrorCode.ERROR_SYSTEM_ERROR
                             }.toMap(),
                             "values" to hashMapOf<Map<String, Any>, Any>()
                     ))
                 }
-                return@launch
             }
-
-            // Set Printer Info
-            printer.printerInfo = printInfo
-
-            // Start communication
-            if (isOneTime) {
-                // Note: Starting a communication does not seem to impact whether we can print or
-                // not. Calling print without calling this seems to still print fine.
-                val started: Boolean = printer.startCommunication()
-            }
-
-            val settingKeys = dartKeys.map { printerSettingItemFromMap(it) }
-            val outValues:MutableMap<PrinterInfo.PrinterSettingItem, String> = hashMapOf()
-            
-            // Get settings
-            val printResult = printer.getPrinterSettings(settingKeys, outValues);
-
-            // End Communication
-            if (isOneTime) {
-                val connectionClosed: Boolean = printer.endCommunication()
-            }
-            // Encode PrinterStatus
-            val dartPrintStatus = printResult.toMap()
-            val dartOutValues:Map<Map<String, Any>, Any> = outValues.entries.associate { (key, value) -> key.toMap() to value }
-           withContext(Dispatchers.Main) {
-               // Set result Printer status.
-               result.success(hashMapOf(
-                   "printerStatus" to dartPrintStatus,
-                   "values" to dartOutValues
-               ))
-           }
         }
 
     }
