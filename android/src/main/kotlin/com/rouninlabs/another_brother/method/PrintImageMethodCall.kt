@@ -61,7 +61,7 @@ class PrintImageMethodCall(val flutterAssets: FlutterPlugin.FlutterAssets, val c
                         // Set result Printer status.
                         PrinterStatus().apply {
                             errorCode = error
-                        }.toMap()
+                        }.toMap(context = context)
                     } else {
 
                         // Set Printer Info

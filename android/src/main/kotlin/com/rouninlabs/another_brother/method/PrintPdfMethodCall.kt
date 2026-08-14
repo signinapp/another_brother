@@ -52,7 +52,7 @@ class PrintPdfMethodCall(val flutterAssets: FlutterPlugin.FlutterAssets, val con
                         // Set result Printer status.
                         result.success(PrinterStatus().apply {
                             errorCode = error
-                        }.toMap())
+                        }.toMap(context = context))
                     }
                     return@launch
                 }
@@ -86,7 +86,7 @@ class PrintPdfMethodCall(val flutterAssets: FlutterPlugin.FlutterAssets, val con
                 withContext(Dispatchers.Main) {
                     result.success(PrinterStatus().apply {
                         errorCode = PrinterInfo.ErrorCode.ERROR_SYSTEM_ERROR
-                    }.toMap())
+                    }.toMap(context = context))
                 }
             }
         }

@@ -50,12 +50,9 @@ class UpdateBluetoothPreferenceMethodCall(val flutterAssets: FlutterPlugin.Flutt
                     // There was an error notify
                     withContext(Dispatchers.Main) {
                         // Set result Printer status.
-                        result.success(hashMapOf(
-                                "printerStatus" to PrinterStatus().apply {
-                                    errorCode = error
-                                }.toMap(),
-                                "btPre" to BluetoothPreference().toMap()
-                        ))
+                        result.success(PrinterStatus().apply {
+                            errorCode = error
+                        }.toMap())
                     }
                     return@launch
                 }

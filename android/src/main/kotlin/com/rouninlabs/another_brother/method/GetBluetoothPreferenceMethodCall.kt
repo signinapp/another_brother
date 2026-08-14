@@ -84,7 +84,7 @@ class GetBluetoothPreferenceMethodCall(val flutterAssets: FlutterPlugin.FlutterA
                    // Set result Printer status.
                    result.success(hashMapOf(
                        "printerStatus" to dartPrintStatus,
-                       "values" to dartOutValues
+                       "btPre" to dartOutValues
                    ))
                }
             } catch (t: Throwable) {
