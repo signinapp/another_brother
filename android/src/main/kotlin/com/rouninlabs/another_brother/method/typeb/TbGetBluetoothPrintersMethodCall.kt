@@ -20,26 +20,33 @@ class TbGetBluetoothPrintersMethodCall(val flutterAssets: FlutterPlugin.FlutterA
     fun execute() {
 
         GlobalScope.launch(Dispatchers.IO) {
+            try {
 
-            val dartPrintInfo: HashMap<String, Any> = call.argument<HashMap<String, Any>>("printInfo")!!
-            val printerId: String = call.argument<String>("printerId")!!
-            val models:List<String> = call.argument<List<String>>("models")!!
+                val dartPrintInfo: HashMap<String, Any> = call.argument<HashMap<String, Any>>("printInfo")!!
+                val printerId: String = call.argument<String>("printerId")!!
+                val models:List<String> = call.argument<List<String>>("models")!!
 
             
-            // TODO Only select the devices containing the model in them.
-            // Brother names their printers with the model followed by what seems to be 4 digits.
-            val matchingPrinters = BluetoothAdapter.getDefaultAdapter().bondedDevices.filter {
-                bluetoothDevice -> models.filter { modelName -> bluetoothDevice.name.contains(modelName) }.isNotEmpty()
+                // TODO Only select the devices containing the model in them.
+                // Brother names their printers with the model followed by what seems to be 4 digits.
+                val matchingPrinters = BluetoothAdapter.getDefaultAdapter().bondedDevices.filter {
+                    bluetoothDevice -> models.filter { modelName -> bluetoothDevice.name.contains(modelName) }.isNotEmpty()
+                }
+
+                //Log.e("Frank", "Found Printers ${BluetoothAdapter.getDefaultAdapter().bondedDevices}")
+                //Log.e("Frank" , "Filtered Printers $matchingPrinters")
+
+                val dartPrinters = matchingPrinters.map { it.toBluetoothPrinter() }
+                withContext(Dispatchers.Main) {
+                   // Set result Printer status.
+                   result.success(dartPrinters)
+               }
+            } catch (t: Throwable) {
+                Log.e("another-brother", "typeB-getBluetoothPrinters error: ", t);
+                withContext(Dispatchers.Main) {
+                    result.success(arrayListOf<Map<String, Any>>())
+                }
             }
-
-            //Log.e("Frank", "Found Printers ${BluetoothAdapter.getDefaultAdapter().bondedDevices}")
-            //Log.e("Frank" , "Filtered Printers $matchingPrinters")
-
-            val dartPrinters = matchingPrinters.map { it.toBluetoothPrinter() }
-            withContext(Dispatchers.Main) {
-               // Set result Printer status.
-               result.success(dartPrinters)
-           }
         }
 
     }

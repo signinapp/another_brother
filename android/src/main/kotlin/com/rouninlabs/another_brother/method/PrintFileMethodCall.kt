@@ -25,60 +25,69 @@ class PrintFileMethodCall(val flutterAssets: FlutterPlugin.FlutterAssets, val co
     fun execute() {
 
         GlobalScope.launch(Dispatchers.IO) {
+            try {
 
-            val dartPrintInfo: HashMap<String, Any> = call.argument<HashMap<String, Any>>("printInfo")!!
-            val printerId: String = call.argument<String>("printerId")!!
-            val filePath:String = call.argument("filePath")!!
+                val dartPrintInfo: HashMap<String, Any> = call.argument<HashMap<String, Any>>("printInfo")!!
+                val printerId: String = call.argument<String>("printerId")!!
+                val filePath:String = call.argument("filePath")!!
 
-            // Decoded Printer Info
-            val printInfo = printerInfofromMap(context = context, flutterAssets = flutterAssets, map = dartPrintInfo)
+                // Decoded Printer Info
+                val printInfo = printerInfofromMap(context = context, flutterAssets = flutterAssets, map = dartPrintInfo)
 
-            // A print request is considered one-time if there was no printer tracked with this ID.
-            // this will open a new connection and close it when done.
-            // If it is not one-time it means someone must have already opened a connection using
-            // the startCommunication() API. When endCommunication() is called that printer will be removed.
-            // Create Printer
-            val trackedPrinter = BrotherManager.getPrinter(printerId = printerId)
-            val isOneTime:Boolean = trackedPrinter == null;
-            val printer = trackedPrinter?: Printer()
+                // A print request is considered one-time if there was no printer tracked with this ID.
+                // this will open a new connection and close it when done.
+                // If it is not one-time it means someone must have already opened a connection using
+                // the startCommunication() API. When endCommunication() is called that printer will be removed.
+                // Create Printer
+                val trackedPrinter = BrotherManager.getPrinter(printerId = printerId)
+                val isOneTime:Boolean = trackedPrinter == null;
+                val printer = trackedPrinter?: Printer()
 
-            // Prepare local connection.
-            val error = setupConnectionManagers(context = context, printer = printer, printInfo = printInfo)
-            if (error != PrinterInfo.ErrorCode.ERROR_NONE) {
-                // There was an error notify
-                withContext(Dispatchers.Main) {
-                    // Set result Printer status.
-                    result.success(PrinterStatus().apply {
-                        errorCode = error
-                    }.toMap())
+                // Prepare local connection.
+                val error = setupConnectionManagers(context = context, printer = printer, printInfo = printInfo)
+                if (error != PrinterInfo.ErrorCode.ERROR_NONE) {
+                    // There was an error notify
+                    withContext(Dispatchers.Main) {
+                        // Set result Printer status.
+                        result.success(PrinterStatus().apply {
+                            errorCode = error
+                        }.toMap(context = context))
+                    }
+                    return@launch
                 }
-                return@launch
+
+                // Set Printer Info
+                printer.printerInfo = printInfo
+
+                // Start communication
+                if (isOneTime) {
+                    // Note: Starting a communication does not seem to impact whether we can print or
+                    // not. Calling print without calling this seems to still print fine.
+                    val started: Boolean = printer.startCommunication()
+                }
+
+                // Print Image
+                val printResult = printer.printFile(filePath)
+
+                // End Communication
+                if (isOneTime) {
+                    val connectionClosed: Boolean = printer.endCommunication()
+                }
+
+                // Encode PrinterStatus
+                val dartPrintStatus = printResult.toMap(context = context)
+               withContext(Dispatchers.Main) {
+                   // Set result Printer status.
+                   result.success(dartPrintStatus)
+               }
+            } catch (t: Throwable) {
+                Log.e("another-brother", "printFile error: ", t);
+                withContext(Dispatchers.Main) {
+                    result.success(PrinterStatus().apply {
+                        errorCode = PrinterInfo.ErrorCode.ERROR_SYSTEM_ERROR
+                    }.toMap(context = context))
+                }
             }
-
-            // Set Printer Info
-            printer.printerInfo = printInfo
-
-            // Start communication
-            if (isOneTime) {
-                // Note: Starting a communication does not seem to impact whether we can print or
-                // not. Calling print without calling this seems to still print fine.
-                val started: Boolean = printer.startCommunication()
-            }
-
-            // Print Image
-            val printResult = printer.printFile(filePath)
-
-            // End Communication
-            if (isOneTime) {
-                val connectionClosed: Boolean = printer.endCommunication()
-            }
-
-            // Encode PrinterStatus
-            val dartPrintStatus = printResult.toMap(context = context)
-           withContext(Dispatchers.Main) {
-               // Set result Printer status.
-               result.success(dartPrintStatus)
-           }
         }
 
     }
