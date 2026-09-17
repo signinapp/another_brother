@@ -26,41 +26,43 @@ static NSString * METHOD_NAME = @"getPrinterStatus";
     return METHOD_NAME;
 }
 - (void)execute {
-    // Get printInfo dart params from call
-    NSDictionary<NSString *, NSObject *> * dartPrintInfo = _call.arguments[@"printInfo"];
-    
-    // TODO Get channel from printInfo
-    BRLMChannel *channel = [BrotherUtils printChannelWithPrintSettingsMap:dartPrintInfo];
-    
-    // TODO Generate printer driver
-    BRLMPrinterDriverGenerateResult * driverGenerateResult = [BRLMPrinterDriverGenerator openChannel:channel];
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0ul);
+    dispatch_async(queue, ^{
+        // Get printInfo dart params from call
+        NSDictionary<NSString *, NSObject *> * dartPrintInfo = self->_call.arguments[@"printInfo"];
+
+        // TODO Get channel from printInfo
+        BRLMChannel *channel = [BrotherUtils printChannelWithPrintSettingsMap:dartPrintInfo];
+
+        // TODO Generate printer driver
+        BRLMPrinterDriverGenerateResult * driverGenerateResult = [BRLMPrinterDriverGenerator openChannel:channel];
         if (driverGenerateResult.error.code != BRLMOpenChannelErrorCodeNoError ||
             driverGenerateResult.driver == nil) {
-            
+
             // On Error report error
             NSDictionary<NSString *, NSObject *> * printStatus = [BrotherUtils printerStatusToMapWithError:BRLMPrintErrorCodePrinterStatusErrorCommunicationError  status:nil];
-            _result(printStatus);
+            dispatch_sync(dispatch_get_main_queue(), ^{
+                self->_result(printStatus);
+            });
             return;
         }
 
-    
-    BRLMPrinterDriver *printerDriver = driverGenerateResult.driver;
-    
-    // Call print method
-    BRLMGetPrinterStatusResult * status = [printerDriver getPrinterStatus];
+        BRLMPrinterDriver *printerDriver = driverGenerateResult.driver;
 
-    
-    [printerDriver closeChannel];
+        // Call print method
+        BRLMGetPrinterStatusResult * status = [printerDriver getPrinterStatus];
 
+        [printerDriver closeChannel];
 
-    BRLMPrintErrorCode errorCode = [BrotherUtils statusErrorCodeToMapWithRawStatus:status.status.ptStatus];
-    
-    // Notify status to Flutter.
-    NSDictionary<NSString *, NSObject *> * printStatus = [BrotherUtils printerStatusToMapWithError:errorCode status:status.status];
-    
-    _result(printStatus);
-   
-   
+        BRLMPrintErrorCode errorCode = [BrotherUtils statusErrorCodeToMapWithRawStatus:status.status.ptStatus];
+
+        // Notify status to Flutter.
+        NSDictionary<NSString *, NSObject *> * printStatus = [BrotherUtils printerStatusToMapWithError:errorCode status:status.status];
+
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            self->_result(printStatus);
+        });
+    });
 }
 
 
