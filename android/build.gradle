@@ -54,10 +54,10 @@ android {
 }
 
 // Fetch submodule during configuration (git submodules not fetched by default).
-exec {
+providers.exec {
     workingDir projectDir.parentFile // repo root where .gitmodules lives.
     commandLine 'git', 'submodule', '--quiet', 'update', '--init', '--recursive'
-}
+}.result.get()
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
