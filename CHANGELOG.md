@@ -181,3 +181,14 @@
   dispatch their work to a background queue and return the result on the main queue, matching the
   pattern already used by `printImage` and the TypeB method calls. Previously, if a printer was
   unreachable, the Bluetooth/TCP timeout would freeze the UI for 30+ seconds.
+
+## 2.2.4-fork.4
+- Android: the build no longer uses `Project.exec()`, which Gradle 9 removed. The submodule fetch now
+  uses `providers.exec` and still runs during configuration.
+- [BREAKING] Bump `flutter_blue_plus` from 1.35.10 to 2.3.12. BLE printer discovery now reads
+  `ScanResult.device.platformName`, because version 2 removed `localName`.
+- [BREAKING] Minimum Android `minSdkVersion` bumped from 19 to 21, which `flutter_blue_plus` 2
+  requires.
+- [BREAKING] Minimum Dart SDK bumped from 2.12.0 to 3.11.0, and minimum Flutter from 1.20.0 to
+  3.38.4.
+- Bump `path_provider` from 2.1.5 to 2.1.6.
