@@ -776,7 +776,7 @@ class TbPrinter {
       for (ScanResult r in results) {
         debugPrint("Scan Result: ${r.device}");
 
-        BLEPrinter foundSt = BLEPrinter(localName: r.device.localName);
+        BLEPrinter foundSt = BLEPrinter(localName: r.device.platformName);
         TbBlePrinter found = TbBlePrinter._(foundSt);
 
         // For now just filter by device name until we get service working.
