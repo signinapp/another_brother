@@ -175,3 +175,9 @@
   what devices without Bluetooth hardware return.
 - Android: `getLabelInfo` no longer replies with a raw `LabelInfo` on its connection-error path. The
   platform codec cannot encode it, so that path crashed the host app instead of reporting an error.
+
+## 2.2.4-fork.3
+- iOS: `getPrinterStatus` and `getBluetoothPrinters` no longer block the main thread. Both now
+  dispatch their work to a background queue and return the result on the main queue, matching the
+  pattern already used by `printImage` and the TypeB method calls. Previously, if a printer was
+  unreachable, the Bluetooth/TCP timeout would freeze the UI for 30+ seconds.
