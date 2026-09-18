@@ -3309,7 +3309,7 @@ class Printer {
       // Listen to scan results
       FlutterBluePlus.scanResults.listen((results) {
         for (ScanResult r in results) {
-          BLEPrinter found = BLEPrinter(localName: r.device.localName);
+          BLEPrinter found = BLEPrinter(localName: r.device.platformName);
           if (!foundDevices.contains(found)) {
             foundDevices.add(found);
           }
